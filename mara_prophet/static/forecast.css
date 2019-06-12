@@ -1,0 +1,43 @@
+
+div#forecast-container div.card-header-left {
+    font-family: 'Open Sans', sans-serif;
+    font-weight: lighter;
+}
+
+div#forecast-container th, div#dashboard-container td {
+    font-family: 'Open Sans', sans-serif;
+}
+
+div.section-header {
+    font-family: 'Open Sans', sans-serif;
+    //font-weight: lighter;
+    color: #3c3c3b;
+    margin-top: 60px;
+    margin-bottom: 12px;
+    font-size: 24px;
+
+}
+
+div.section-header:first-child {
+    margin-top: 10px;
+}
+
+div.metrics-table th:not(:first-child) {
+    text-align: right;
+}
+
+div.mara-card:not(:hover) .query-control {
+    display: none;
+}
+
+div.modal-body {
+    overflow-x: auto;
+}
+
+/*
+Prevent Google charts from flickering
+https://stackoverflow.com/questions/37902708/google-charts-tooltip-flickering
+*/
+div.google-chart svg > g > g:last-child {
+    pointer-events: none
+}
