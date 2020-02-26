@@ -4,6 +4,7 @@ import json
 
 import mara_db.postgresql
 import mara_db.auto_migration
+import mara_db.config
 import mara_prophet.config
 import numpy as np
 import pandas as pd
@@ -34,9 +35,9 @@ class ForecastBase(Base):
     id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
     metric_name = sqlalchemy.Column(sqlalchemy.TEXT, nullable=False)
     forecast_ts = sqlalchemy.Column(sqlalchemy.DateTime(timezone=True), nullable=False)
-    model = sqlalchemy.Column(sqlalchemy.LargeBinary)
     forecasts_df = sqlalchemy.Column(sqlalchemy.LargeBinary)
     source_df = sqlalchemy.Column(sqlalchemy.LargeBinary)
+    components_figure = sqlalchemy.Column(sqlalchemy.LargeBinary)
     hyper_parameters = sqlalchemy.Column(JSONB)
 
     __table_args__ = (sqlalchemy.UniqueConstraint('metric_name', 'forecast_ts', name='forecasts_uk'),)
@@ -96,6 +97,7 @@ class Forecast:
         """
         Forecast the metric for the next {number_of_days} days
         """
+        from mara_prophet.views import get_components_figure
         np.warnings.filterwarnings('ignore')
 
         logging_handler = logging.StreamHandler(sys.stdout)
@@ -119,6 +121,7 @@ class Forecast:
             changepoint_range=self.changepoint.changepoint_range,
             changepoint_prior_scale=self.changepoint.changepoint_prior_scale
         )
+
         m.fit(df)
         future = m.make_future_dataframe(periods=self.number_of_days)
         forecast = m.predict(future)
@@ -132,16 +135,18 @@ class Forecast:
         if mara_prophet.config.forecast_table_name():
             self.insert_into_table(forecast)
 
-        # Save model and forecasts dataframe as binaries in mara-db
-        m_pickled = pickle.dumps(m)
+        # Serialize source, forecast dataframes and components figure
+        # Mainly for accessing asynchronously at different front-ends directly from the 'mara' database
         forecast_pickled = pickle.dumps(forecast)
         source_data_pickled = pickle.dumps(df)
+        components_figure = get_components_figure(m, forecast)
+        components_figure_pickled = pickle.dumps(components_figure)
 
         # Save hyper parameters used by the model as JSON in mara-db
         hyper_parameters = json.dumps({
             'growth': m.growth,
             'holidays': [d['ds'].strftime('%Y-%m-%d') for d in
-                         m.holidays.to_dict('records')] if not m.holidays.empty else None,
+                         m.holidays.to_dict('records')] if m.holidays else None,
             'changepoint_prior_scale': m.changepoint_prior_scale,
             'changepoint_range': m.changepoint_range,
             'changepoints': [cp.strftime('%Y-%m-%d') for cp in
@@ -152,18 +157,24 @@ class Forecast:
             'yearly_seasonality': m.yearly_seasonality,
             'weekly_seasonality': m.weekly_seasonality,
             'daily_seasonality': m.daily_seasonality,
+            'number_of_days': self.number_of_days
         })
 
-        with mara_db.postgresql.postgres_cursor_context('mara') as cursor:
-            cursor.execute(
-                f"INSERT INTO forecasts(metric_name, forecast_ts, model, forecasts_df, source_df, hyper_parameters) "
-                f"VALUES ({'%s, %s, %s, %s, %s, %s'})",
-                (str(self.metric_name).lower().replace(' ', '_').replace('-', '_'),
-                 datetime.datetime.utcnow(),
-                 Binary(m_pickled),
-                 Binary(forecast_pickled),
-                 Binary(source_data_pickled),
-                 hyper_parameters))
+        if mara_db.config.databases().get('mara'):
+            # Auto-migrate required mara-prophet internal forecasts table
+            mara_db.auto_migration.auto_discover_models_and_migrate()
+
+            with mara_db.postgresql.postgres_cursor_context('mara') as cursor:
+                cursor.execute(
+                    f"INSERT INTO forecasts(metric_name, forecast_ts, forecasts_df, "
+                    f"source_df, components_figure, hyper_parameters) "
+                    f"VALUES ({'%s, %s, %s, %s, %s, %s'})",
+                    (str(self.metric_name).lower().replace(' ', '_').replace('-', '_'),
+                     datetime.datetime.utcnow(),
+                     Binary(forecast_pickled),
+                     Binary(source_data_pickled),
+                     Binary(components_figure_pickled),
+                     hyper_parameters))
 
 
 def create_forecast_table():

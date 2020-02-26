@@ -110,33 +110,6 @@ def view_plots():
     )
 
 
-@blueprint.route('/_get_plot_image/<string:name>/<string:components>')
-@acl.require_permission(acl_resource)
-def get_plot_image(name, components):
-    # plot the latest forecast
-    with mara_db.postgresql.postgres_cursor_context('mara') as cursor:
-        cursor.execute(f'''
-        SELECT metric_name, model, forecasts_df, source_df 
-        FROM forecasts WHERE metric_name = {'%s'}
-        ORDER BY forecast_ts DESC
-        LIMIT 1''', (name,))
-        result = cursor.fetchone()
-
-    if result:
-        m = pickle.loads(result[1])
-        forecast_df = pickle.loads(result[2])
-        source_df = pickle.loads(result[3])
-
-        figure = get_components_figure(m, forecast_df) if components == 'True' \
-            else get_main_plot_figure(name, source_df, forecast_df)
-
-        output = io.BytesIO()
-        FigureCanvas(figure).print_png(output)
-
-    return str(_.img(src="data:image/png;base64," +
-                         str(base64.b64encode(output.getvalue()).decode("utf-8")))) if result else 'No data yet.'
-
-
 def get_main_plot_figure(name, source_df, forecast_df):
     source_df.set_index('ds', inplace=True)
     forecast_df.set_index('ds', inplace=True)
@@ -205,6 +178,32 @@ def get_components_figure(m, fcst):
 
     fig.tight_layout()
     return fig
+
+
+@blueprint.route('/_get_plot_image/<string:name>/<string:components>')
+@acl.require_permission(acl_resource)
+def get_plot_image(name, components):
+    # plot the latest forecast
+    with mara_db.postgresql.postgres_cursor_context('mara') as cursor:
+        cursor.execute(f'''
+        SELECT metric_name, forecasts_df, source_df, components_figure 
+        FROM forecasts WHERE metric_name = {'%s'}
+        ORDER BY forecast_ts DESC
+        LIMIT 1''', (name,))
+        result = cursor.fetchone()
+
+    if result:
+        forecast_df = pickle.loads(result[1])
+        source_df = pickle.loads(result[2])
+        components_figure = pickle.loads(result[3])
+
+        figure = components_figure if components == 'True' else get_main_plot_figure(name, source_df, forecast_df)
+
+        output = io.BytesIO()
+        FigureCanvas(figure).print_png(output)
+
+    return str(_.img(src="data:image/png;base64," +
+                         str(base64.b64encode(output.getvalue()).decode("utf-8")))) if result else 'No data yet.'
 
 
 @blueprint.route('/_query_details/<string:name>')
