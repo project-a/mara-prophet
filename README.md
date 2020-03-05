@@ -3,21 +3,16 @@
 A lightweight framework for producing, integrating and historizing [Facebook-prophet](https://github.com/facebook/prophet) 
 forecasts for time series data in Mara.
 
-Mara prophet is a laconic and simplified python module for integrating and historizing high quality forecasts for time series data 
-produced with [Facebook-prophet](https://github.com/facebook/prophet) 
-by absolving on the same time the overhead of integration and multiple configurations.
-
 Mara-prophet provides a framework for:
 
 - Producing, validating and historizing Facebook prophet's models and forecasts
 - On demand database integration (currently PostgreSQL only) of the historical time series and forecasts for ease of ETL and further reporting processing
-- Visualizing, on demand, the analysis results as standalone KPI charts using the [mara-page](https://github.com/mara/mara-page) module
+- Analysis results' visualizations as standalone KPI charts using the [mara-page](https://github.com/mara/mara-page) module
 - Time series component analysis containing trend, yearly/weekly seasonality and holiday effects
 
 ## Resulting data
 
-The historical time series and the resulting data are stored, on demand, in a user-specified table 
-and are currently structured as:
+The historical time series and the resulting data are stored in a user-specified table, structured as:
 
 ```SQL
 metric_date  DATE, -- Date of current's metric value
@@ -29,7 +24,7 @@ upper_ci     DOUBLE PRECISION  -- Upper confidence interval forecasted value
 Primary Keys: metric_date, metric_name
 ```
 
-While multiple metrics and their respective forecasts can be integrated in the same table.
+Multiple metrics and their respective forecasts can be integrated in the same table.
 
 Mara prophet comes packed with a default visualization of the historical and forecasting data along with a component analysis. 
 Both highlighted in an auto-migrated python ```Flask``` view by using the [mara-page](https://github.com/mara/mara-page) module,
@@ -152,7 +147,7 @@ with the arrows defining the current dependency graph among the ETL individual n
 
 ![Business target pipeline](docs/pipeline.png)
 
-The main output of such a pipeline can be a `business_target_dataset` table with a structure as below:
+The main output of such a pipeline can be a `business_target_dataset` table with a structure like:
 
 ```SQL
 "Metric"   TEXT, -- Name of the current metric

@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='mara-prophet',
-    version='2.0.0',
+    version='2.0.1',
     description="Business KPI forecasting module based on time-series analysis",
 
     install_requires=[
