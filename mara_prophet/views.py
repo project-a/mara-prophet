@@ -177,7 +177,12 @@ def get_components_figure(m, fcst):
             multiplicative_axes.append(ax)
 
     fig.tight_layout()
-    return fig
+
+    output = io.BytesIO()
+    FigureCanvas(fig).print_png(output)
+    png_bytes = str(base64.b64encode(output.getvalue()).decode("utf-8"))
+
+    return png_bytes
 
 
 @blueprint.route('/_get_plot_image/<string:name>/<string:components>')
@@ -192,18 +197,25 @@ def get_plot_image(name, components):
         LIMIT 1''', (name,))
         result = cursor.fetchone()
 
+    png_bytes = None
     if result:
         forecast_df = pickle.loads(result[1])
         source_df = pickle.loads(result[2])
         components_figure = pickle.loads(result[3])
 
-        figure = components_figure if components == 'True' else get_main_plot_figure(name, source_df, forecast_df)
+        png_bytes = components_figure
+        if components != 'True':
+            # get main forecast plot figure
+            figure = get_main_plot_figure(name, source_df, forecast_df)
 
-        output = io.BytesIO()
-        FigureCanvas(figure).print_png(output)
+            output = io.BytesIO()
+            FigureCanvas(figure).print_png(output)
+            png_bytes = str(base64.b64encode(output.getvalue()).decode("utf-8"))
 
     return str(_.img(src="data:image/png;base64," +
-                         str(base64.b64encode(output.getvalue()).decode("utf-8")))) if result else 'No data yet.'
+                         png_bytes
+                     )
+               ) if result else 'No data yet.'
 
 
 @blueprint.route('/_query_details/<string:name>')

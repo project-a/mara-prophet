@@ -1,6 +1,10 @@
 # Changelog
 
-## 2.0.1 (2018-03-05)
+## 2.0.2 (2020-03-24)
+
+- Bugfix output of get_components_figure()
+
+## 2.0.1 (2020-03-05)
 
 - Update documentation
 
