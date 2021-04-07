@@ -146,7 +146,7 @@ class Forecast:
         hyper_parameters = json.dumps({
             'growth': m.growth,
             'holidays': [d['ds'].strftime('%Y-%m-%d') for d in
-                         m.holidays.to_dict('records')] if m.holidays else None,
+                         m.holidays.to_dict('records')] if not m.holidays.empty else None,
             'changepoint_prior_scale': m.changepoint_prior_scale,
             'changepoint_range': m.changepoint_range,
             'changepoints': [cp.strftime('%Y-%m-%d') for cp in
